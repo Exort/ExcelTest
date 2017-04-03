@@ -52,6 +52,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Model\AmountTotal.cs" />
+    <Compile Include="Model\AssesedClient.cs" />
+    <Compile Include="Model\Invoice.cs" />
+    <Compile Include="Model\InvoiceEntry.cs" />
+    <Compile Include="Model\Settings.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

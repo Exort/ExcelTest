@@ -1,127 +1,14 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
 using ClosedXML.Excel;
+using ExcelRyan.Model;
 using Newtonsoft.Json;
 
 namespace ExcelRyan
 {
     internal class Program
     {
-        [Serializable]
-        public class Settings
-        {
-            public class WorksheetColumns
-            {
-                public int FirstRow;
-                public string ClientId;
-                public string Date;
-                public string InvoiceId;
-                public string ItemId;
-                public string ItemDescription;
-                public string Amount;
-                public string Assessed;
-            }
-
-            public string InputDocumentPath;
-            public string TemplateDocumentPath;
-            public string OutputFolder;
-
-            public Dictionary<string, WorksheetColumns> Worksheets = new Dictionary<string, WorksheetColumns>();
-        }
-
-        class AmountTotal
-        {
-            public double Amount;
-            public double Assesed;
-        }
-
-        class InvoiceEntry
-        {
-            public string ClientId;
-            public string Date;
-            public string InvoiceId;
-            public string ItemId;
-            public string ItemDescription;
-            public double Amount;
-            public double Assesed;
-        }
-
-        class Invoice
-        {
-            public string ClientId;
-            public string Date;
-            public string InvoiceId;
-
-            public List<InvoiceEntry> Entries = new List<InvoiceEntry>();
-
-            public void AddEntry(InvoiceEntry entry)
-            {
-                if (Entries.Contains(entry))
-                {
-                    throw new Exception("Trying to add same entry twice");
-                }
-
-                Entries.Add(entry);
-            }
-
-            public AmountTotal GetTotal()
-            {
-                var total = new AmountTotal();
-                foreach (var invoiceEntry in Entries)
-                {
-                    total.Amount += invoiceEntry.Amount;
-                    total.Assesed += invoiceEntry.Assesed;
-                }
-                return total;
-            }
-        }
-
-        class AssesedClient
-        {
-            public string Id;
-
-            public Dictionary<string, Invoice> Invoices = new Dictionary<string, Invoice>();
-
-            public void AddEntry(InvoiceEntry entry)
-            {
-                if (!Invoices.ContainsKey(entry.InvoiceId))
-                {
-                    AddInvoice(new Invoice
-                    {
-                        ClientId = Id,
-                        InvoiceId = entry.InvoiceId,
-                        Date = entry.Date
-                    });
-                }
-
-                Invoices[entry.InvoiceId].AddEntry(entry);
-            }
-
-            private void AddInvoice(Invoice invoice)
-            {
-                if (Invoices.ContainsKey(invoice.InvoiceId))
-                {
-                    throw new Exception("Trying to add same invoice twice");
-                }
-
-                Invoices[invoice.InvoiceId] = invoice;
-            }
-        }
-
-        private const string TestDataPath = @"D:\Projects\ExcelTest\ExcelRyan\XLSFiles\Test.xlsx";
-
-        private const string RawDataPath =
-            @"D:\Projects\ExcelTest\ExcelRyan\XLSFiles\KF & KFDI Back-up file for Ryan - what left.xlsx";
-
-        private const string TemplatePath = @"D:\Projects\ExcelTest\ExcelRyan\XLSFiles\Client Template.xlsx";
-        private const string PackagePathFormat = @"D:\Projects\ExcelTest\ExcelRyan\XLSFiles\{0}.xlsx";
-
         private static List<InvoiceEntry> _allEntries = new List<InvoiceEntry>();
         private static Dictionary<string, AssesedClient> _clients = new Dictionary<string, AssesedClient>();
         private static Settings _settings;
@@ -166,12 +53,12 @@ namespace ExcelRyan
 
         static List<InvoiceEntry> LoadRawData()
         {
-            Console.WriteLine($"Loading workbook {RawDataPath}");
+            Console.WriteLine($"Loading workbook {_settings.InputDocumentPath}");
             Console.WriteLine("This might take a while ^^");
 
-            using (var workbook = new XLWorkbook(RawDataPath))
+            using (var workbook = new XLWorkbook(_settings.InputDocumentPath))
             {
-                Console.WriteLine($"{RawDataPath} loaded.");
+                Console.WriteLine($"{_settings.InputDocumentPath} loaded.");
 
                 foreach (var sheet in workbook.Worksheets)
                 {
@@ -221,7 +108,7 @@ namespace ExcelRyan
         {
             Console.WriteLine($"Creating package for {clientID}");
 
-            var filePath = String.Format(PackagePathFormat, clientID);
+            var filePath = String.Format(Path.Combine(_settings.OutputFolder, $"{clientID}.xlsx"));
 
 #if !DEBUG
             if (File.Exists(filePath))
@@ -230,7 +117,7 @@ namespace ExcelRyan
             }
 #endif
 
-            File.Copy(TemplatePath, filePath, true);
+            File.Copy(_settings.TemplateDocumentPath, filePath, true);
 
             using (var workbook = new XLWorkbook(filePath))
             {
