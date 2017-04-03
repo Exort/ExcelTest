@@ -13,6 +13,9 @@ namespace ExcelRyan
         private static Dictionary<string, AssesedClient> _clients = new Dictionary<string, AssesedClient>();
         private static Settings _settings;
 
+        static Dictionary<string, IXLStyle> _schedule2ColumnStyles = new Dictionary<string, IXLStyle>();
+        static Dictionary<string, IXLStyle> _schedule3ColumnStyles = new Dictionary<string, IXLStyle>();
+
         public static void Main(string[] args)
         {
             try
@@ -29,15 +32,10 @@ namespace ExcelRyan
             }
             finally
             {
-#if !DEBUG
                 Console.WriteLine("Press any key to close");
                 Console.ReadKey();
-#endif
             }
         }
-
-        static Dictionary<string, IXLStyle> _schedule2ColumnStyles = new Dictionary<string, IXLStyle>();
-        static Dictionary<string, IXLStyle> _schedule3ColumnStyles = new Dictionary<string, IXLStyle>();
 
         static void Execute()
         {
@@ -117,7 +115,10 @@ namespace ExcelRyan
             }
 #endif
 
+            Directory.CreateDirectory(_settings.OutputFolder);
             File.Copy(_settings.TemplateDocumentPath, filePath, true);
+
+
 
             using (var workbook = new XLWorkbook(filePath))
             {
@@ -140,14 +141,14 @@ namespace ExcelRyan
                 var currentRow = 8;
                 foreach (var invoice in client.Invoices.Values)
                 {
-                    var dateCell = SetCellValue(schedule2Sheet, currentRow, "B", invoice.Date);
+                    var dateCell = SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "B", invoice.Date);
                     dateCell.SetDataType(XLCellValues.DateTime);
 
                     var invoiceTotal = invoice.GetTotal();
 
-                    SetCellValue(schedule2Sheet, currentRow, "C", invoice.InvoiceId);
-                    SetCellValue(schedule2Sheet, currentRow, "E", invoiceTotal.Amount);
-                    SetCellValue(schedule2Sheet, currentRow, "H", invoiceTotal.Assesed);
+                    SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "C", invoice.InvoiceId);
+                    SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "E", invoiceTotal.Amount);
+                    SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "H", invoiceTotal.Assesed);
 
                     clientTotal.Amount += invoiceTotal.Amount;
                     clientTotal.Assesed += invoiceTotal.Assesed;
@@ -157,41 +158,54 @@ namespace ExcelRyan
 
                 currentRow++;
 
-                SetCellValue(schedule2Sheet, currentRow, "C", "Grand Total");
+                SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "C", "Grand Total");
 
-                var totalAmountCell = SetCellValue(schedule2Sheet, currentRow, "E", clientTotal.Amount);
+                var totalAmountCell = SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "E", clientTotal.Amount);
                 totalAmountCell.Style.Font.Bold = true;
 
-                var totalAssessedCell = SetCellValue(schedule2Sheet, currentRow, "H", clientTotal.Assesed);
+                var totalAssessedCell = SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "H", clientTotal.Assesed);
                 totalAssessedCell.Style.Font.Bold = true;
             }
         }
 
         static void CreateSchedule3(XLWorkbook workbook, AssesedClient client)
         {
-            IXLWorksheet schedule2Sheet;
-            if (workbook.TryGetWorksheet("Schedule 3", out schedule2Sheet))
+            IXLWorksheet schedule3Sheet;
+            if (workbook.TryGetWorksheet("Schedule 3", out schedule3Sheet))
             {
                 Console.WriteLine("Filling out schedule 3");
 
                 var currentRow = 9;
 
+                var uniqueItems = new HashSet<string>();
+
                 foreach (var invoice in client.Invoices.Values)
                 {
-                    currentRow++;
+                    foreach (var currentEntry in invoice.Entries)
+                    {
+                        if (!uniqueItems.Contains(currentEntry.ItemId))
+                        {
+                            uniqueItems.Add(currentEntry.ItemId);
+
+                            SetCellValue(schedule3Sheet, _schedule3ColumnStyles, currentRow, "B", currentEntry.ItemClientId);
+                            SetCellValue(schedule3Sheet, _schedule3ColumnStyles, currentRow, "C", currentEntry.ItemId);
+                            SetCellValue(schedule3Sheet, _schedule3ColumnStyles, currentRow, "D", currentEntry.ItemDescription);
+
+                            currentRow++;
+                        }
+                    }
                 }
-                currentRow++;
             }
         }
 
-        static IXLCell SetCellValue<T>(IXLWorksheet sheet, int row, string column, T value)
+        static IXLCell SetCellValue<T>(IXLWorksheet sheet, Dictionary<string, IXLStyle> styleMap, int row, string column, T value)
         {
             var cell = sheet.Cell(row, column);
-            if (!_schedule2ColumnStyles.ContainsKey(column))
+            if (!styleMap.ContainsKey(column))
             {
-                _schedule2ColumnStyles[column] = cell.Style;
+                styleMap[column] = cell.Style;
             }
-            cell.Style = _schedule2ColumnStyles[column];
+            cell.Style = styleMap[column];
 
             cell.SetValue(value);
 

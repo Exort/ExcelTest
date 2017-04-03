@@ -12,6 +12,7 @@ namespace ExcelRyan.Model
             public string ClientId;
             public string Date;
             public string InvoiceId;
+            public string ItemClientId;
             public string ItemId;
             public string ItemDescription;
             public string Amount;
