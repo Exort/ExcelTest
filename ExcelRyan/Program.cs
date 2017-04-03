@@ -81,6 +81,9 @@ namespace ExcelRyan
                             Date = sheet.Cell(currentRow, sheetSettings.Date).GetString(),
                             InvoiceId = sheet.Cell(currentRow, sheetSettings.InvoiceId).GetString(),
                             ClientId = sheet.Cell(currentRow, sheetSettings.ClientId).GetString(),
+                            ItemClientId = sheet.Cell(currentRow, sheetSettings.ItemClientId).GetString(),
+                            ItemId = sheet.Cell(currentRow, sheetSettings.ItemId).GetString(),
+                            ItemDescription = sheet.Cell(currentRow, sheetSettings.ItemDescription).GetString(),
                             Amount = sheet.Cell(currentRow, sheetSettings.Amount).GetDouble(),
                             Assesed = sheet.Cell(currentRow, sheetSettings.Assessed).GetDouble(),
                         };
@@ -183,7 +186,7 @@ namespace ExcelRyan
                 {
                     foreach (var currentEntry in invoice.Entries)
                     {
-                        if (!uniqueItems.Contains(currentEntry.ItemId))
+                        if (!string.IsNullOrEmpty(currentEntry.ItemId) && !uniqueItems.Contains(currentEntry.ItemId))
                         {
                             uniqueItems.Add(currentEntry.ItemId);
 
