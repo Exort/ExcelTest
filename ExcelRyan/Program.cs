@@ -135,12 +135,12 @@ namespace ExcelRyan
 
                         var clientId = sheet.Cell(currentRow, "A").GetString();
 
-                        currentRow++;
-
                         AssesedClient assesedClient;
                         if (!_clients.TryGetValue(clientId, out assesedClient))
                         {
                             Console.WriteLine($"Skipping {clientId}, no known invoices for that client");
+                            currentRow++;
+
                             continue;
                         }
 
@@ -149,6 +149,9 @@ namespace ExcelRyan
                         assesedClient.City = sheet.Cell(currentRow, "D").GetString();
                         assesedClient.PostalCode = sheet.Cell(currentRow, "E").GetString();
                         assesedClient.RyanInvoiceId = sheet.Cell(currentRow, "F").GetString();
+
+                        currentRow++;
+
                     }
 
                     Console.WriteLine($"{sheet.Name} done. Processed {currentRow - _settings.ClientInfoFirstRow + 1} rows.");
@@ -293,11 +296,12 @@ namespace ExcelRyan
                     dateCell.SetValue(DateTime.Today.ToString("M/d/yyyy"));
                     dateCell.SetDataType(XLCellValues.DateTime);
 
-                    var dueDateCell = invoiceSheet.Cell(3, "F");
+                    var dueDateCell = invoiceSheet.Cell(6, "F");
                     dueDateCell.SetValue(DateTime.Today.AddDays(30).ToString("M/d/yyyy"));
                     dueDateCell.SetDataType(XLCellValues.DateTime);
 
-                    invoiceSheet.Cell(16, "F").SetValue(client.LastCalculatedTotal.Amount);
+                    invoiceSheet.Cell(16, "F").SetValue(client.LastCalculatedTotal.Assesed);
+                    invoiceSheet.Cell(31, "F").SetValue(client.LastCalculatedTotal.Assesed);
                 }
 
                 workbook.Save(true);
