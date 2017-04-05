@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using ClosedXML.Excel;
 using ExcelRyan.Model;
 using Newtonsoft.Json;
@@ -13,8 +14,10 @@ namespace ExcelRyan
         private static Dictionary<string, AssesedClient> _clients = new Dictionary<string, AssesedClient>();
         private static Settings _settings;
 
-        static Dictionary<string, IXLStyle> _schedule2ColumnStyles = new Dictionary<string, IXLStyle>();
-        static Dictionary<string, IXLStyle> _schedule3ColumnStyles = new Dictionary<string, IXLStyle>();
+        static Dictionary<string, IXLStyle> _schedule2Styles = new Dictionary<string, IXLStyle>();
+        static Dictionary<string, IXLStyle> _schedule3Styles = new Dictionary<string, IXLStyle>();
+
+        static Dictionary<string, IXLStyle> _invoiceStyles = new Dictionary<string, IXLStyle>();
 
         public static void Main(string[] args)
         {
@@ -43,9 +46,14 @@ namespace ExcelRyan
 
             Console.WriteLine("Data loaded. Processing each clients found");
 
-            foreach (var kvp in _clients)
+            foreach (var client in _clients.Values)
             {
-                CreatePackage(kvp.Key, kvp.Value);
+                var outputFolder = Path.Combine(_settings.OutputFolder, client.Id);
+
+                Directory.CreateDirectory(outputFolder);
+
+                CreatePackage(outputFolder, client);
+                //CreateRyanInvoice(outputFolder, client);
             }
         }
 
@@ -81,7 +89,6 @@ namespace ExcelRyan
                             Date = sheet.Cell(currentRow, sheetSettings.Date).GetString(),
                             InvoiceId = sheet.Cell(currentRow, sheetSettings.InvoiceId).GetString(),
                             ClientId = sheet.Cell(currentRow, sheetSettings.ClientId).GetString(),
-                            ItemClientId = sheet.Cell(currentRow, sheetSettings.ItemClientId).GetString(),
                             ItemId = sheet.Cell(currentRow, sheetSettings.ItemId).GetString(),
                             ItemDescription = sheet.Cell(currentRow, sheetSettings.ItemDescription).GetString(),
                             Amount = sheet.Cell(currentRow, sheetSettings.Amount).GetDouble(),
@@ -92,7 +99,7 @@ namespace ExcelRyan
 
                         if (!_clients.ContainsKey(invoiceEntry.ClientId))
                         {
-                            _clients[invoiceEntry.ClientId] = new AssesedClient();
+                            _clients[invoiceEntry.ClientId] = new AssesedClient(invoiceEntry.ClientId);
                         }
                         _clients[invoiceEntry.ClientId].AddEntry(invoiceEntry);
 
@@ -105,11 +112,12 @@ namespace ExcelRyan
             return _allEntries;
         }
 
-        static void CreatePackage(string clientID, AssesedClient client)
-        {
-            Console.WriteLine($"Creating package for {clientID}");
 
-            var filePath = String.Format(Path.Combine(_settings.OutputFolder, $"{clientID}.xlsx"));
+        static void CreatePackage(string outputFolder, AssesedClient client)
+        {
+            Console.WriteLine($"Creating package for {client.Id}");
+
+            var filePath = String.Format(Path.Combine(outputFolder, $"{client.Id}.xlsx"));
 
 #if !DEBUG
             if (File.Exists(filePath))
@@ -118,10 +126,7 @@ namespace ExcelRyan
             }
 #endif
 
-            Directory.CreateDirectory(_settings.OutputFolder);
-            File.Copy(_settings.TemplateDocumentPath, filePath, true);
-
-
+            File.Copy(_settings.SchedulesTemplateDocumentPath, filePath, true);
 
             using (var workbook = new XLWorkbook(filePath))
             {
@@ -144,14 +149,14 @@ namespace ExcelRyan
                 var currentRow = 8;
                 foreach (var invoice in client.Invoices.Values)
                 {
-                    var dateCell = SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "B", invoice.Date);
+                    var dateCell = SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "B", invoice.Date);
                     dateCell.SetDataType(XLCellValues.DateTime);
 
                     var invoiceTotal = invoice.GetTotal();
 
-                    SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "C", invoice.InvoiceId);
-                    SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "E", invoiceTotal.Amount);
-                    SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "H", invoiceTotal.Assesed);
+                    SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "C", invoice.InvoiceId);
+                    SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "E", invoiceTotal.Amount);
+                    SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "H", invoiceTotal.Assesed);
 
                     clientTotal.Amount += invoiceTotal.Amount;
                     clientTotal.Assesed += invoiceTotal.Assesed;
@@ -159,14 +164,18 @@ namespace ExcelRyan
                     currentRow++;
                 }
 
+                client.LastCalculatedTotal = clientTotal;
+
                 currentRow++;
 
-                SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "C", "Grand Total");
+                SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "C", "Grand Total");
 
-                var totalAmountCell = SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "E", clientTotal.Amount);
+                var totalAmountCell = SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "E",
+                    clientTotal.Amount);
                 totalAmountCell.Style.Font.Bold = true;
 
-                var totalAssessedCell = SetCellValue(schedule2Sheet, _schedule2ColumnStyles, currentRow, "H", clientTotal.Assesed);
+                var totalAssessedCell = SetCellValue(schedule2Sheet, _schedule2Styles, currentRow, "H",
+                    clientTotal.Assesed);
                 totalAssessedCell.Style.Font.Bold = true;
             }
         }
@@ -182,26 +191,66 @@ namespace ExcelRyan
 
                 var uniqueItems = new HashSet<string>();
 
+                List<InvoiceEntry> allEntries = new List<InvoiceEntry>();
+
                 foreach (var invoice in client.Invoices.Values)
                 {
                     foreach (var currentEntry in invoice.Entries)
                     {
-                        if (!string.IsNullOrEmpty(currentEntry.ItemId) && !uniqueItems.Contains(currentEntry.ItemId))
+                        if (string.IsNullOrEmpty(currentEntry.ItemId) || uniqueItems.Contains(currentEntry.ItemId))
                         {
-                            uniqueItems.Add(currentEntry.ItemId);
-
-                            SetCellValue(schedule3Sheet, _schedule3ColumnStyles, currentRow, "B", currentEntry.ItemClientId);
-                            SetCellValue(schedule3Sheet, _schedule3ColumnStyles, currentRow, "C", currentEntry.ItemId);
-                            SetCellValue(schedule3Sheet, _schedule3ColumnStyles, currentRow, "D", currentEntry.ItemDescription);
-
-                            currentRow++;
+                            continue;
                         }
+                        uniqueItems.Add(currentEntry.ItemId);
+                        allEntries.Add(currentEntry);
                     }
+                }
+
+                allEntries = allEntries.OrderBy(x => x.ItemDescription).ToList();
+
+                foreach (var currentEntry in allEntries)
+                {
+                    SetCellValue(schedule3Sheet, _schedule3Styles, currentRow, "B", currentEntry.ClientId);
+                    SetCellValue(schedule3Sheet, _schedule3Styles, currentRow, "C", currentEntry.ItemId);
+                    SetCellValue(schedule3Sheet, _schedule3Styles, currentRow, "D", currentEntry.ItemDescription);
+
+                    currentRow++;
                 }
             }
         }
 
-        static IXLCell SetCellValue<T>(IXLWorksheet sheet, Dictionary<string, IXLStyle> styleMap, int row, string column, T value)
+        static void CreateRyanInvoice(string outputFolder, AssesedClient client)
+        {
+            Console.WriteLine($"Creating invoice for {client.Id}");
+
+            var filePath = Path.Combine(outputFolder, $"Invoice - {client.Id}.xlsx");
+
+#if !DEBUG
+            if (File.Exists(filePath))
+            {
+                throw new FileLoadException($"{filePath} already exists");
+            }
+#endif
+
+            File.Copy(_settings.InvoiceTemplateDocumentPath, filePath, true);
+
+            using (var workbook = new XLWorkbook(filePath))
+            {
+                IXLWorksheet invoiceSheet;
+                if (workbook.TryGetWorksheet("sheetname", out invoiceSheet))
+                {
+                    SetCellValue(invoiceSheet, _schedule2Styles, 1, "E", client.Id);
+                    SetCellValue(invoiceSheet, _schedule2Styles, 1, "E", client.Name);
+                    SetCellValue(invoiceSheet, _schedule2Styles, 1, "E", client.Address);
+
+                }
+
+                workbook.Save(true);
+            }
+        }
+
+        static IXLCell SetCellValue<T>(IXLWorksheet sheet, Dictionary<string, IXLStyle> styleMap, int row,
+            string column, T value)
         {
             var cell = sheet.Cell(row, column);
             if (!styleMap.ContainsKey(column))

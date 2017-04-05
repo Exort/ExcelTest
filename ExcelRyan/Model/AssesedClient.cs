@@ -6,8 +6,17 @@ namespace ExcelRyan.Model
     class AssesedClient
     {
         public string Id;
+        public string Name;
+        public string Address;
+
+        public AmountTotal LastCalculatedTotal;
 
         public Dictionary<string, Invoice> Invoices = new Dictionary<string, Invoice>();
+
+        public AssesedClient(string id)
+        {
+            Id = id;
+        }
 
         public void AddEntry(InvoiceEntry entry)
         {

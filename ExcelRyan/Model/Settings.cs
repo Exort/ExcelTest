@@ -20,7 +20,9 @@ namespace ExcelRyan.Model
         }
 
         public string InputDocumentPath;
-        public string TemplateDocumentPath;
+        public string SchedulesTemplateDocumentPath;
+        public string InvoiceTemplateDocumentPath;
+
         public string OutputFolder;
 
         public Dictionary<string, WorksheetColumns> Worksheets = new Dictionary<string, WorksheetColumns>();

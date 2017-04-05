@@ -1,6 +1,7 @@
 {
   "InputDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\KF & KFDI Back-up file for Ryan - what left.xlsx",
-  "TemplateDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Template Client.xlsx",
+  "SchedulesTemplateDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Schedule Template.xlsx",
+  "InvoiceTemplateDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Invoice Template.xlsx",
   "OutputFolder": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Output",
   "Worksheets": {
     "JC KF": {
@@ -8,11 +9,20 @@
       "ClientId": "H",
       "Date": "F",
       "InvoiceId": "G",
-      "ItemClientId": "A",
       "ItemId": "I",
       "ItemDescription": "J",
       "Amount": "L",
       "Assessed": "O"
+    },
+	"Familiprix": {
+      "FirstRow": 2,
+      "ClientId": "B",
+      "Date": "H",
+      "InvoiceId": "G",
+      "ItemId": "I",
+      "ItemDescription": "J",
+      "Amount": "L",
+      "Assessed": "M"
     }
   }
 }
