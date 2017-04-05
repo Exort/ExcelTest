@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using ClosedXML.Excel;
@@ -16,8 +17,6 @@ namespace ExcelRyan
 
         static Dictionary<string, IXLStyle> _schedule2Styles = new Dictionary<string, IXLStyle>();
         static Dictionary<string, IXLStyle> _schedule3Styles = new Dictionary<string, IXLStyle>();
-
-        static Dictionary<string, IXLStyle> _invoiceStyles = new Dictionary<string, IXLStyle>();
 
         public static void Main(string[] args)
         {
@@ -44,16 +43,18 @@ namespace ExcelRyan
         {
             _allEntries = LoadRawData();
 
+            FilloutClientInformation();
+
             Console.WriteLine("Data loaded. Processing each clients found");
 
             foreach (var client in _clients.Values)
             {
-                var outputFolder = Path.Combine(_settings.OutputFolder, client.Id);
+                var outputFolder = _settings.OutputFolder;
 
                 Directory.CreateDirectory(outputFolder);
 
-                CreatePackage(outputFolder, client);
-                //CreateRyanInvoice(outputFolder, client);
+                CreateSchedules(outputFolder, client);
+                CreateRyanInvoice(outputFolder, client);
             }
         }
 
@@ -70,7 +71,7 @@ namespace ExcelRyan
                 {
                     Console.WriteLine($"Processing sheet {sheet.Name}");
 
-                    Settings.WorksheetColumns sheetSettings;
+                    Settings.EntriesWorksheetColumns sheetSettings;
                     if (!_settings.Worksheets.TryGetValue(sheet.Name, out sheetSettings))
                     {
                         Console.WriteLine($"{sheet.Name}, skipped, not found in settings file");
@@ -112,12 +113,54 @@ namespace ExcelRyan
             return _allEntries;
         }
 
+        static void FilloutClientInformation()
+        {
+            Console.WriteLine($"Loading workbook {_settings.ClientInfoDocumentPath}");
+            Console.WriteLine("This might take a while ^^");
 
-        static void CreatePackage(string outputFolder, AssesedClient client)
+            using (var workbook = new XLWorkbook(_settings.ClientInfoDocumentPath))
+            {
+                Console.WriteLine($"{_settings.ClientInfoDocumentPath} loaded.");
+
+                foreach (var sheet in workbook.Worksheets)
+                {
+                    Console.WriteLine($"Processing sheet {sheet.Name}");
+
+                    var rowCount = sheet.RowCount();
+                    var currentRow = _settings.ClientInfoFirstRow;
+
+                    while (currentRow <= rowCount && !string.IsNullOrEmpty(sheet.Cell(currentRow, "A").GetString()))
+                    {
+                        Console.WriteLine($"Processing row {currentRow}");
+
+                        var clientId = sheet.Cell(currentRow, "A").GetString();
+
+                        currentRow++;
+
+                        AssesedClient assesedClient;
+                        if (!_clients.TryGetValue(clientId, out assesedClient))
+                        {
+                            Console.WriteLine($"Skipping {clientId}, no known invoices for that client");
+                            continue;
+                        }
+
+                        assesedClient.Name = sheet.Cell(currentRow, "B").GetString();
+                        assesedClient.Address = sheet.Cell(currentRow, "C").GetString();
+                        assesedClient.City = sheet.Cell(currentRow, "D").GetString();
+                        assesedClient.PostalCode = sheet.Cell(currentRow, "E").GetString();
+                        assesedClient.RyanInvoiceId = sheet.Cell(currentRow, "F").GetString();
+                    }
+
+                    Console.WriteLine($"{sheet.Name} done. Processed {currentRow - _settings.ClientInfoFirstRow + 1} rows.");
+                }
+            }
+        }
+
+        static void CreateSchedules(string outputFolder, AssesedClient client)
         {
             Console.WriteLine($"Creating package for {client.Id}");
 
-            var filePath = String.Format(Path.Combine(outputFolder, $"{client.Id}.xlsx"));
+            var filePath = String.Format(Path.Combine(outputFolder, $"Schedule {client.Id}.xlsx"));
 
 #if !DEBUG
             if (File.Exists(filePath))
@@ -223,7 +266,7 @@ namespace ExcelRyan
         {
             Console.WriteLine($"Creating invoice for {client.Id}");
 
-            var filePath = Path.Combine(outputFolder, $"Invoice - {client.Id}.xlsx");
+            var filePath = Path.Combine(outputFolder, $"Invoice {client.Id}.xlsx");
 
 #if !DEBUG
             if (File.Exists(filePath))
@@ -237,12 +280,24 @@ namespace ExcelRyan
             using (var workbook = new XLWorkbook(filePath))
             {
                 IXLWorksheet invoiceSheet;
-                if (workbook.TryGetWorksheet("sheetname", out invoiceSheet))
+                if (workbook.TryGetWorksheet("Sheet1", out invoiceSheet))
                 {
-                    SetCellValue(invoiceSheet, _schedule2Styles, 1, "E", client.Id);
-                    SetCellValue(invoiceSheet, _schedule2Styles, 1, "E", client.Name);
-                    SetCellValue(invoiceSheet, _schedule2Styles, 1, "E", client.Address);
+                    invoiceSheet.Cell(5, "F").SetValue(client.Id);
+                    invoiceSheet.Cell(10, "A").SetValue(client.Name);
+                    invoiceSheet.Cell(11, "A").SetValue(client.Address);
+                    invoiceSheet.Cell(12, "A").SetValue(client.City);
+                    invoiceSheet.Cell(13, "A").SetValue(client.PostalCode);
+                    invoiceSheet.Cell(4, "F").SetValue(client.RyanInvoiceId);
 
+                    var dateCell = invoiceSheet.Cell(3, "F");
+                    dateCell.SetValue(DateTime.Today.ToString("M/d/yyyy"));
+                    dateCell.SetDataType(XLCellValues.DateTime);
+
+                    var dueDateCell = invoiceSheet.Cell(3, "F");
+                    dueDateCell.SetValue(DateTime.Today.AddDays(30).ToString("M/d/yyyy"));
+                    dueDateCell.SetDataType(XLCellValues.DateTime);
+
+                    invoiceSheet.Cell(16, "F").SetValue(client.LastCalculatedTotal.Amount);
                 }
 
                 workbook.Save(true);

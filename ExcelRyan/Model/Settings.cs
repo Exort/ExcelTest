@@ -6,7 +6,7 @@ namespace ExcelRyan.Model
     [Serializable]
     public class Settings
     {
-        public class WorksheetColumns
+        public class EntriesWorksheetColumns
         {
             public int FirstRow;
             public string ClientId;
@@ -20,11 +20,15 @@ namespace ExcelRyan.Model
         }
 
         public string InputDocumentPath;
+
+        public string ClientInfoDocumentPath;
+        public int ClientInfoFirstRow;
+
         public string SchedulesTemplateDocumentPath;
         public string InvoiceTemplateDocumentPath;
 
         public string OutputFolder;
 
-        public Dictionary<string, WorksheetColumns> Worksheets = new Dictionary<string, WorksheetColumns>();
+        public Dictionary<string, EntriesWorksheetColumns> Worksheets = new Dictionary<string, EntriesWorksheetColumns>();
     }
 }

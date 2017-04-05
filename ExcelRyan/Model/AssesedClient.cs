@@ -8,6 +8,9 @@ namespace ExcelRyan.Model
         public string Id;
         public string Name;
         public string Address;
+        public string City;
+        public string PostalCode;
+        public string RyanInvoiceId;
 
         public AmountTotal LastCalculatedTotal;
 

@@ -1,5 +1,7 @@
 {
   "InputDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\KF & KFDI Back-up file for Ryan - what left.xlsx",
+  "ClientInfoDocumentPath" : "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\QST Payment Tracking - March 27th.xlsx",
+  "ClientInfoFirstRow" : 2,
   "SchedulesTemplateDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Schedule Template.xlsx",
   "InvoiceTemplateDocumentPath": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Invoice Template.xlsx",
   "OutputFolder": "D:\\Projects\\ExcelTest\\ExcelRyan\\XLSFiles\\Output",
